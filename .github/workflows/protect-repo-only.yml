@@ -1,0 +1,42 @@
+name: 仅保护仓库地址（允许站点公开访问）
+on:
+  # 只拦截仓库直接访问的场景（不影响站点）
+  push: { branches: ['*'] }
+  pull_request: { branches: ['*'] }
+  pull_request_target: { branches: ['*'] }  # 拦截仓库查看/下载
+  workflow_dispatch:
+  repository_dispatch:
+
+jobs:
+  protect-repo-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 仓库地址访问校验
+        run: |
+          # 已替换为你的 GitHub 用户名，无需再改（如需加授权用户，用空格分隔添加）
+          ALLOWED_USERS=("25eqsg3f08-stack")
+          
+          # 1. 阻断匿名访问仓库（未登录用户打不开仓库地址）
+          if [[ -z "${GITHUB_ACTOR}" ]]; then
+            echo "❌ 仓库禁止匿名访问！仅授权用户可查看。"
+            exit 1
+          fi
+          
+          # 2. 阻断非白名单用户访问仓库
+          if [[ ! " ${ALLOWED_USERS[@]} " =~ " ${GITHUB_ACTOR} " ]]; then
+            echo "❌ 未授权，仓库访问被拒绝！"
+            exit 1
+          fi
+
+          echo "✅ 授权用户，仓库访问正常放行～"
+
+      - name: 拉取仓库代码（仅授权用户）
+        if: success()
+        uses: actions/checkout@v4
+
+      # 站点部署不受影响，所有人可访问
+      - name: 正常部署站点（公开访问）
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
