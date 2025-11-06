@@ -1,0 +1,40 @@
+name: 仅保护仓库地址（允许站点公开访问）
+on:
+  push: { branches: ['*'] }
+  pull_request: { branches: ['*'] }
+  pull_request_target: { branches: ['*'] }
+  workflow_dispatch:
+  repository_dispatch:
+  create:  # 拦截创建分支/标签
+  delete:  # 拦截删除操作
+  issues:  # 拦截issues操作（若未关闭）
+
+jobs:
+  protect-repo-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 仓库地址访问校验
+        run: |
+          ALLOWED_USERS=("25eqsg3f08-stack")
+          
+          if [[ -z "${GITHUB_ACTOR}" ]]; then
+            echo "❌ 仓库禁止匿名访问！仅授权用户可查看。"
+            exit 1
+          fi
+          
+          if [[ ! " ${ALLOWED_USERS[@]} " =~ " ${GITHUB_ACTOR} " ]]; then
+            echo "❌ 未授权，仓库访问被拒绝！"
+            exit 1
+          fi
+
+          echo "✅ 授权用户，仓库访问正常放行～"
+
+      - name: 拉取仓库代码（仅授权用户）
+        if: success()
+        uses: actions/checkout@v4
+
+      - name: 正常部署站点（公开访问）
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
